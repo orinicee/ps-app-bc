@@ -49,7 +49,7 @@ func TestContentRepository_Create(t *testing.T) {
 		t.Fatalf("Error connecting to database: %v", err)
 	}
 	defer db.Close()
-	defer cleanupTestData(db) // Limpiar datos después del test
+	defer cleanupTestData(db)
 
 	// Crear un usuario de prueba
 	userID, err := createTestUser(db)
@@ -94,14 +94,14 @@ func TestContentRepository_Create(t *testing.T) {
 	}
 }
 
-func TestContentRepository_List(t *testing.T) {
+func TestContentRepository_Update(t *testing.T) {
 	config := setupTestDB(t)
 	db, err := database.NewConnection(*config)
 	if err != nil {
 		t.Fatalf("Error connecting to database: %v", err)
 	}
 	defer db.Close()
-	defer cleanupTestData(db) // Limpiar datos después del test
+	defer cleanupTestData(db)
 
 	// Crear un usuario de prueba
 	userID, err := createTestUser(db)
@@ -111,7 +111,122 @@ func TestContentRepository_List(t *testing.T) {
 
 	repo := NewContentRepository(db)
 
-	// contenidos de prueba
+	// Crear un contenido inicial
+	content := &domain.Content{
+		ID:          uuid.New(),
+		Title:       "Original Title",
+		Description: "Original Description",
+		URL:         "https://test.com/video",
+		Type: domain.ContentType{
+			TypeName:    "video",
+			Description: "Contenido tipo video",
+		},
+		IsFree:    true,
+		CreatedBy: userID,
+	}
+
+	// Crear el contenido
+	err = repo.Create(content)
+	if err != nil {
+		t.Fatalf("Error creating initial content: %v", err)
+	}
+
+	// Modificar el contenido
+	content.Title = "Updated Title"
+	content.Description = "Updated Description"
+	content.IsFree = false
+
+	// Actualizar el contenido
+	err = repo.Update(content)
+	if err != nil {
+		t.Fatalf("Error updating content: %v", err)
+	}
+
+	// Verificar los cambios
+	updated, err := repo.GetByID(content.ID)
+	if err != nil {
+		t.Fatalf("Error retrieving updated content: %v", err)
+	}
+
+	if updated.Title != "Updated Title" {
+		t.Errorf("Expected title 'Updated Title', got %s", updated.Title)
+	}
+	if updated.Description != "Updated Description" {
+		t.Errorf("Expected description 'Updated Description', got %s", updated.Description)
+	}
+	if updated.IsFree {
+		t.Error("Expected IsFree to be false")
+	}
+}
+
+func TestContentRepository_Delete(t *testing.T) {
+	config := setupTestDB(t)
+	db, err := database.NewConnection(*config)
+	if err != nil {
+		t.Fatalf("Error connecting to database: %v", err)
+	}
+	defer db.Close()
+	defer cleanupTestData(db)
+
+	// Crear un usuario de prueba
+	userID, err := createTestUser(db)
+	if err != nil {
+		t.Fatalf("Error creating test user: %v", err)
+	}
+
+	repo := NewContentRepository(db)
+
+	// Crear un contenido para eliminar
+	content := &domain.Content{
+		ID:          uuid.New(),
+		Title:       "Content to Delete",
+		Description: "This content will be deleted",
+		URL:         "https://test.com/video",
+		Type: domain.ContentType{
+			TypeName:    "video",
+			Description: "Contenido tipo video",
+		},
+		IsFree:    true,
+		CreatedBy: userID,
+	}
+
+	// Crear el contenido
+	err = repo.Create(content)
+	if err != nil {
+		t.Fatalf("Error creating content to delete: %v", err)
+	}
+
+	// Eliminar el contenido
+	err = repo.Delete(content.ID)
+	if err != nil {
+		t.Fatalf("Error deleting content: %v", err)
+	}
+
+	// Verificar que el contenido ya no existe
+	_, err = repo.GetByID(content.ID)
+	if err == nil {
+		t.Error("Expected error when retrieving deleted content, got nil")
+	}
+}
+
+func TestContentRepository_List(t *testing.T) {
+	config := setupTestDB(t)
+	db, err := database.NewConnection(*config)
+	if err != nil {
+		t.Fatalf("Error connecting to database: %v", err)
+	}
+	defer db.Close()
+	defer cleanupTestData(db)
+
+	// Crear un usuario de prueba
+	userID, err := createTestUser(db)
+	if err != nil {
+		t.Fatalf("Error creating test user: %v", err)
+	}
+
+	repo := NewContentRepository(db)
+
+	// Crear varios contenidos de prueba
 	contents := []*domain.Content{
 		{
 			ID:          uuid.New(),
@@ -147,27 +262,29 @@ func TestContentRepository_List(t *testing.T) {
 		}
 	}
 
-	// Obtener lista de contenidos
-	retrieved, err := repo.List(10, 0)
-	if err != nil {
-		t.Fatalf("Error listing contents: %v", err)
+	// Probar paginación
+	tests := []struct {
+		name     string
+		page     int
+		pageSize int
+		want     int
+	}{
+		{"first page", 1, 1, 1},
+		{"second page", 2, 1, 1},
+		{"full page", 1, 2, 2},
+		{"empty page", 3, 1, 0},
 	}
 
-	// Verificar que obtenemos los contenidos creados
-	if len(retrieved) != len(contents) {
-		t.Errorf("Expected %d contents, got %d", len(contents), len(retrieved))
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			retrieved, err := repo.List(tt.pageSize, (tt.page-1)*tt.pageSize)
+			if err != nil {
+				t.Fatalf("Error listing contents: %v", err)
+			}
 
-	// Verificar que los contenidos tienen los campos requeridos
-	for _, content := range retrieved {
-		if content.ID == uuid.Nil {
-			t.Error("Content has nil ID")
-		}
-		if content.Title == "" {
-			t.Error("Content has empty title")
-		}
-		if content.Type.TypeName == "" {
-			t.Error("Content has empty type")
-		}
+			if len(retrieved) != tt.want {
+				t.Errorf("Expected %d contents, got %d", tt.want, len(retrieved))
+			}
+		})
 	}
 }

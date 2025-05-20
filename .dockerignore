@@ -1,0 +1,14 @@
+.git
+.gitignore
+.env
+*.md
+vendor/
+tmp/
+*_test.go
+*_test.go.tmp
+test/
+tests/
+testing/
+__tests__/
+coverage/
+.cover/ 

@@ -117,3 +117,55 @@ func (r *ContentRepository) List(limit, offset int) ([]*domain.Content, error) {
 
 	return contents, nil
 }
+
+// Update actualiza un contenido existente
+func (r *ContentRepository) Update(content *domain.Content) error {
+	query := `
+		UPDATE contents 
+		SET title = $1, description = $2, url = $3, 
+			type = $4, is_free = $5
+		WHERE id = $6`
+
+	result, err := r.db.Exec(
+		query,
+		content.Title,
+		content.Description,
+		content.URL,
+		content.Type.TypeName,
+		content.IsFree,
+		content.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("error updating content: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("content not found with id: %v", content.ID)
+	}
+
+	return nil
+}
+
+// Delete elimina un contenido
+func (r *ContentRepository) Delete(id uuid.UUID) error {
+	query := `DELETE FROM contents WHERE id = $1`
+
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting content: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("content not found with id: %v", id)
+	}
+
+	return nil
+}

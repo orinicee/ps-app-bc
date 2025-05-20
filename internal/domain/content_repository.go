@@ -1,9 +1,14 @@
 package domain
 
+import (
+	"github.com/google/uuid"
+)
+
+// ContentRepository define la interfaz para las operaciones de persistencia de contenido
 type ContentRepository interface {
-	Save(content *Content) error
-	FindAll() ([]*Content, error)
-	FindByID(id string) (*Content, error)
-	FindFree() ([]*Content, error)
-	FindByPsychologist(psychID string) ([]*Content, error)
+	Create(content *Content) error
+	GetByID(id uuid.UUID) (*Content, error)
+	List(limit, offset int) ([]*Content, error)
+	Update(content *Content) error
+	Delete(id uuid.UUID) error
 }
