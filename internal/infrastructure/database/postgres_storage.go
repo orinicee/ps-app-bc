@@ -18,6 +18,11 @@ func NewPostgresStorage(db *sql.DB) domain.Storage {
 	}
 }
 
+// DB retorna la conexión a la base de datos
+func (s *PostgresStorage) DB() *sql.DB {
+	return s.db
+}
+
 // HealthCheck implementa el método de la interfaz domain.Storage
 func (s *PostgresStorage) HealthCheck() error {
 	return s.db.Ping()

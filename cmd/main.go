@@ -12,12 +12,12 @@ import (
 func main() {
 	// Configuración de la base de datos
 	dbConfig := database.Config{
-		Host:     os.Getenv("DB_HOST"),
+		Host:     getEnvOrDefault("DB_HOST", "127.0.0.1"),
 		Port:     getEnvAsInt("DB_PORT", 5432),
-		User:     os.Getenv("DB_USER"),
-		Password: os.Getenv("DB_PASSWORD"),
-		DBName:   os.Getenv("DB_NAME"),
-		SSLMode:  "disable",
+		User:     getEnvOrDefault("DB_USER", "postgres"),
+		Password: getEnvOrDefault("DB_PASSWORD", "postgres123"),
+		DBName:   getEnvOrDefault("DB_NAME", "ps_app"),
+		SSLMode:  getEnvOrDefault("DB_SSL_MODE", "disable"),
 	}
 
 	// Inicializar la conexión a la base de datos
@@ -30,11 +30,16 @@ func main() {
 	storage := database.NewPostgresStorage(db)
 	defer storage.Close()
 
+	// Verificar la conexión
+	if err := storage.HealthCheck(); err != nil {
+		log.Fatalf("Error al verificar la conexión a la base de datos: %v", err)
+	}
+
 	// Inicializar el servidor HTTP
 	server := api.NewServer(storage)
 
 	// Iniciar el servidor
-	port := "8080"
+	port := getEnvOrDefault("PORT", "8080")
 	log.Printf("Servidor iniciado en el puerto %s", port)
 	if err := server.Start(":" + port); err != nil {
 		log.Fatalf("Error al iniciar el servidor: %v", err)
@@ -48,4 +53,11 @@ func getEnvAsInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
 }
